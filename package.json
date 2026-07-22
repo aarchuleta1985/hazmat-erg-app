@@ -1,0 +1,13 @@
+{
+  "name": "hazmat-erg-field-reference",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "tauri": "tauri",
+    "build:win": "tauri build",
+    "build:msstore": "tauri build --no-bundle && tauri bundle --config src-tauri/tauri.microsoftstore.conf.json"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  }
+}
