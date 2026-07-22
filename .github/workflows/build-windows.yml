@@ -1,0 +1,67 @@
+name: Build Windows installer
+
+# Runs on GitHub's free windows-latest runner, so you don't need a Windows machine
+# to get a working NSIS/MSI installer. Starts automatically the moment you upload/
+# commit these files to the repo (no need to click into the Actions tab) — or you
+# can still trigger it manually from Actions, or push a tag like "v1.0.0" to also
+# publish a GitHub Release with the files attached.
+on:
+  workflow_dispatch: {}
+  push:
+    branches:
+      - main
+      - master
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install JS deps (Tauri CLI)
+        run: npm install
+
+      - name: Build general-distribution installer (auto-downloads WebView2)
+        run: npm run build:win
+
+      - name: Stash general-distribution bundle
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path artifacts/general | Out-Null
+          Copy-Item -Recurse -Force src-tauri/target/release/bundle/* artifacts/general/
+
+      - name: Build Microsoft Store installer (offline WebView2 bundled in)
+        run: npm run build:msstore
+
+      - name: Stash Microsoft Store bundle
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path artifacts/msstore | Out-Null
+          Copy-Item -Recurse -Force src-tauri/target/release/bundle/* artifacts/msstore/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hazmat-erg-windows-installers
+          path: artifacts/**
+
+      - name: Create GitHub Release with installers attached
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/general/**/*.exe
+            artifacts/general/**/*.msi
+            artifacts/msstore/**/*.exe
+            artifacts/msstore/**/*.msi
